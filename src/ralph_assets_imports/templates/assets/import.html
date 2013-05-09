@@ -1,0 +1,56 @@
+{% extends 'assets/base.html' %}
+
+{% load url from future %}
+{% load icons %}
+{% load bob %}
+
+{% block content %}
+<h2>Walidator danych: </h2>
+
+<h3>Import danych</h3>
+{% form form=form %}
+<hr>
+    <h3>Błędy z inwentaryzacji</h3>
+    <table class="table table-striped table-bordered">
+        <thead><tr>
+                <th>Błędy</th>
+                <th>Link</th>
+                {% include "assets/view_record_header.html" %}
+        </tr>
+    </thead>
+        <tbody>
+        {% for type, record, errors, paired_data in import_errors.ralph %}
+        <tr>
+            <td>
+                {{ errors|join:',' }}
+            </td>
+            <td>
+                <a href="/admin/ralph_assets_imports/importrecord/{{record.id}}">Edit</a><br>
+                <a target="_noblank" href="/admin/ralph_assets_imports/?create_id=/{{record.id}}">Add</a>
+            </td>
+            {% include "assets/view_record.html" with record=record %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <hr>
+    <h3>Brak w Inwentaryzacji</h3>
+    <table class="table table-striped table-bordered">
+        <thead><tr>
+                <th>Link</th>
+                {% include "assets/view_ralph_header.html" %}
+        </tr></thead>
+        <tbody>
+        {% for type, record in import_errors.inwent %}
+        <tr>
+            <td>
+
+            </td>
+            {% include "assets/view_ralph.html" with record=record %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+{% endblock content %}
