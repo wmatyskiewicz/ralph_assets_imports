@@ -28,11 +28,12 @@ from ralph.business.models import Venture
 from ralph.discovery.models_device import Device, DeviceType
 from ralph.discovery.models_util import SavingUser
 
-
 SAVE_PRIORITY = 0
 
 
 class ImportRecord(TimeTrackable, EditorTrackable, SavingUser, SoftDeletable):
+    device = models.ForeignKey(Device, null=True)
+
     model = models.CharField(
         verbose_name='Model urzadzenia',
         max_length=1024,
@@ -53,7 +54,7 @@ class ImportRecord(TimeTrackable, EditorTrackable, SavingUser, SoftDeletable):
         max_length=128,
         blank=True,
     )
-   box = models.CharField(
+    rack = models.CharField(
         verbose_name='Szafa',
         max_length=128,
         blank=True,
@@ -63,7 +64,7 @@ class ImportRecord(TimeTrackable, EditorTrackable, SavingUser, SoftDeletable):
         max_length=128,
         blank=True,
     )
-    device_height = models.CharField(
+    u_height = models.CharField(
         verbose_name='Wysokosc urzadzenia',
         max_length=128,
         blank=True,
@@ -98,8 +99,6 @@ class ImportRecord(TimeTrackable, EditorTrackable, SavingUser, SoftDeletable):
         max_length=128,
         blank=True,
     )
-
-
     date = models.CharField(
         verbose_name='Data przyjecia',
         max_length=128,
@@ -115,4 +114,20 @@ class ImportRecord(TimeTrackable, EditorTrackable, SavingUser, SoftDeletable):
         max_length=128,
         blank=True,
     )
+    imported = models.BooleanField(
+        default=False,
+    )
+    second_sn = models.CharField(
+        verbose_name='Drugi SN',
+        max_length=128,
+        blank=True,
+    )
+    errors = models.CharField(
+        max_length=2048,
+        blank=True,
+        null=True,
+    )
+
+    def __unicode__(self):
+        return "%s (%s, bc:%s)" % (self.model, self.sn, self.barcode)
 
