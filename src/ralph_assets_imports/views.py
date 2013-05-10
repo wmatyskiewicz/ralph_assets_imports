@@ -223,10 +223,15 @@ class DataCenterImportAssets(DataCenterMixin):
             if not sn and not barcode:
                 errors.append('Brak sn oraz barcode')
             if sn or barcode:
+                logger.debug('has sn or barcode');
                 if not barcode in barcodes:
+                    logger.debug('barcode not in barcodes');
                     if not sn in sns:
+                        logger.debug('sn not in sns');
                         if not sn in components_sns:
+                            logger.debug('sn not in components');
                             if not record.device:
+                                logger.debug('and no assigned device');
                                 errors.append('Brak w Ralph')
                             else:
                                 paired_data = {'component_sn': sn, 'record': record, 'paired': record.device}
@@ -239,6 +244,7 @@ class DataCenterImportAssets(DataCenterMixin):
                         except KeyError:
                             errors.append(['Duplikat sn w Inwent.'])
                 else:
+                    logger.debug('barcode is in barcodes');
                     try:
                         del barcodes_copy[barcode]
                         paired_data = {'barcode': barcode, 'record': record, 'paired': Device.objects.get(barcode=barcode)}
