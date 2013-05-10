@@ -80,6 +80,8 @@ class DataCenterImportAssets(DataCenterMixin):
     def get(self, *args, **kwargs):
         if self.request.GET.get('csv'):
             return self.get_csv(*args, **kwargs)
+        if self.request.GET.get('recheck'):
+            self.do_import()
         create_id = self.request.GET.get('create_id', '')
         if create_id:
             self.create_asset(create_id)
@@ -96,6 +98,25 @@ class DataCenterImportAssets(DataCenterMixin):
                 self.import_errors['inwent'].append(i)
         return super(DataCenterImportAssets, self).get(*args, **kwargs)
 
+    def do_import(self):
+        for i in self.validate():
+            if i[0] == 'ok':
+                try:
+                    with transaction.commit_on_success():
+                        ir = ImportRecord.objects.get(id=i[1].id)
+                        ir.device = i[2]['paired']
+                        ir.save()
+                        self.create_asset(i[1].id)
+                        ir.imported = True
+                        ir.save()
+                except Exception as e:
+                    #transaction.rollback()
+                    ir = ImportRecord.objects.get(id=i[1].id)
+                    ir.errors = str(e)
+                    ir.imported = False
+                    ir.save()
+                    logging.error('error importing', exc_info=e)
+        
     def post(self, *args, **kwargs):
         self.form = UploadFileForm(self.request.POST, self.request.FILES)
         if self.form.is_valid():
@@ -109,24 +130,7 @@ class DataCenterImportAssets(DataCenterMixin):
             OfficeInfo.admin_objects.all().delete()
             PartInfo.admin_objects.all().delete()
             self.import_(opened_file)
-            for i in self.validate():
-                if i[0] == 'ok':
-                    try:
-                        with transaction.commit_on_success():
-                            ir = ImportRecord.objects.get(id=i[1].id)
-                            ir.device = i[2]['paired']
-                            ir.save()
-                            self.create_asset(i[1].id)
-                            ir.imported = True
-                            ir.save()
-                    except Exception as e:
-                        #transaction.rollback()
-                        ir = ImportRecord.objects.get(id=i[1].id)
-                        ir.errors = str(e)
-                        ir.imported = False
-                        ir.save()
-                        logging.error('error importing', exc_info=e)
-
+            self.do_import()
         return self.get(*args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -212,7 +216,8 @@ class DataCenterImportAssets(DataCenterMixin):
             errors = []
             sn = self.cleaner(record.sn).lower()
             barcode = self.cleaner(record.barcode).lower()
-
+            if record.errors:
+                errors.append(errors)
             #if not record.fv:
             #    errors.append('Brak fv')
             #if not record.invent_value:
