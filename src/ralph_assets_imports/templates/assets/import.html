@@ -27,7 +27,7 @@
             </td>
             <td>
                 <a href="/admin/ralph_assets_imports/importrecord/{{record.id}}">Edit</a><br>
-                <a target="_noblank" href="/admin/ralph_assets_imports/?create_id=/{{record.id}}">Add</a>
+                <a target="_noblank" href="/admin/ralph_assets_imports/?create_id={{record.id}}">Add as new</a>
             </td>
             {% include "assets/view_record.html" with record=record %}
         </tr>
