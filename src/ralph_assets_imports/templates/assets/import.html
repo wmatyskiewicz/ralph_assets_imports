@@ -11,13 +11,16 @@
 {% form form=form %}
 <hr>
     <h3>Błędy z inwentaryzacji</h3><br>
-    <a href="?csv"> Export do csv</a><br>
-    <a href="?reimport">Reimport poprawionych rekordów</a><br>
-    
+    <a class='button btn-primary' href="?csv"> Export do csv</a><br>
+    <a class='button btn-primary' href="?reimport">Reimport poprawionych rekordów</a><br>
+    <br>
+    <h3> niekompletnych: {{failed_count}}, błędnych: {{fixed_count}}, zaimportowanych: {{success_count}}</h3>
+
     <table class="table table-striped table-bordered">
         <thead><tr>
-                <th>Błędy</th>
-                <th>Link</th>
+                <th>błędy</th>
+                <th>link</th>
+                <th>link</th>
                 {% include "assets/view_record_header.html" %}
         </tr>
     </thead>
@@ -29,7 +32,9 @@
             </td>
             <td>
                 <a href="/admin/ralph_assets_imports/importrecord/{{record.id}}">Edit</a><br>
-                <a target="_noblank" href="?create_id={{record.id}}">Add as new</a>
+            </td>
+            <td>
+                <a target="_noblank" href="?create_id={{record.id}}">Add</a>
             </td>
             {% include "assets/view_record.html" with record=record %}
         </tr>

@@ -86,6 +86,9 @@ class DataCenterImportAssets(DataCenterMixin):
             return self.get_csv(*args, **kwargs)
         if self.request.GET.get('reimport'):
             self.do_import()
+        self.success_count = ImportRecord.objects.filter(imported=True).count()
+        self.failed_count = ImportRecord.objects.filter(imported=False).count()
+
         create_id = self.request.GET.get('create_id', '')
         if create_id:
             self.create_asset(create_id)
@@ -95,11 +98,14 @@ class DataCenterImportAssets(DataCenterMixin):
         self.import_errors = dict();
         self.import_errors['ralph'] = [];
         self.import_errors['inwent'] = [];
+        self.fixed_count = 0
         for i in self.validate():
             if i[0] == 'error_ralph':
                 self.import_errors['ralph'].append(i)
             elif i[0] == 'error_inwent':
                 self.import_errors['inwent'].append(i)
+            elif i[0] == 'ok':
+                self.fixed_count += 1
         return super(DataCenterImportAssets, self).get(*args, **kwargs)
 
     def do_import(self, dry_run=True):
@@ -142,6 +148,10 @@ class DataCenterImportAssets(DataCenterMixin):
         ret.update({
             'form': self.form,
             'import_errors': self.import_errors,
+            'success_count': getattr(self, 'success_count', ''),
+            'failed_count': getattr(self, 'failed_count', ''),
+            'fixed_count': getattr(self, 'fixed_count', ''),
+
         })
         return ret
 
