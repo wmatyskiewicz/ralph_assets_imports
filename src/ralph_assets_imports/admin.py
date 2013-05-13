@@ -54,7 +54,7 @@ class ImportRecordAdminForm(forms.ModelForm):
         model = ImportRecord
 
     device = AutoCompleteSelectField(
-        ('ralph_assets.models', 'RalphDeviceLookup')
+        ('ralph_assets.models', 'RalphDeviceLookup'), required=False
     )
 
 

@@ -28,6 +28,8 @@ from ralph_assets.models import Asset, DeviceInfo, PartInfo, AssetType,AssetCate
 from django.db import transaction
 import logging
 
+logger = logging.getLogger('ralph')
+logger.debug('start')
 
 class DataCenterImportAssets(DataCenterMixin):
     template_name = 'assets/import.html'
@@ -60,10 +62,10 @@ class DataCenterImportAssets(DataCenterMixin):
                 price=decimal.Decimal(str(obj.invent_value.replace(',', '.')) or 0),
                 remarks=obj.info + '\n' + 'Inw. name: ' + obj.name,
                 niw=obj.niw,
-                production_use_date=obj.date,
+                production_use_date=None, #obj.date,
                 source=AssetSource.shipment,
-                sn=obj.sn,
-                barcode=obj.barcode,
+                sn=obj.sn or None,
+                barcode=obj.barcode or None,
                 deprecation_rate=decimal.Decimal(obj.deprecation_rate.replace(',','.') or 0),
                 warehouse=Warehouse.concurrent_get_or_create(name=obj.dc)[0],
             ),
@@ -76,11 +78,14 @@ class DataCenterImportAssets(DataCenterMixin):
             ),
         )
         ass.save()
+        ass.create_stock_device()
+        obj.imported = True
+        obj.save()
 
     def get(self, *args, **kwargs):
         if self.request.GET.get('csv'):
             return self.get_csv(*args, **kwargs)
-        if self.request.GET.get('recheck'):
+        if self.request.GET.get('reimport'):
             self.do_import()
         create_id = self.request.GET.get('create_id', '')
         if create_id:
@@ -100,6 +105,7 @@ class DataCenterImportAssets(DataCenterMixin):
 
     def do_import(self):
         for i in self.validate():
+            logger.debug(i)
             if i[0] == 'ok':
                 try:
                     with transaction.commit_on_success():
@@ -107,8 +113,6 @@ class DataCenterImportAssets(DataCenterMixin):
                         ir.device = i[2]['paired']
                         ir.save()
                         self.create_asset(i[1].id)
-                        ir.imported = True
-                        ir.save()
                 except Exception as e:
                     #transaction.rollback()
                     ir = ImportRecord.objects.get(id=i[1].id)
@@ -196,7 +200,15 @@ class DataCenterImportAssets(DataCenterMixin):
         barcodes = dict([(self.cleaner(row['barcode']).lower(), row['id']) for row in data])
         sns = dict([((self.cleaner(row['sn'])).lower(), row['id']) for row in data])
 
-        del sns['']; del barcodes[''];
+        for key in ['', None]:
+            try:
+                del sns[key]; 
+            except KeyError:
+                pass
+            try:
+                del barcodes[key]
+            except KeyError:
+                pass
 
         data_components = GenericComponent.objects.values('id', 'sn')
 
@@ -207,9 +219,12 @@ class DataCenterImportAssets(DataCenterMixin):
         # after copy
         errors = []
         if record_id:
-            objects = ImportRecord.objects.filter(id__in=[record_id], imported=False)
+            objects = ImportRecord.objects.filter(id__in=[record_id], imported=False).order_by('barcode')
         else:
-            objects = ImportRecord.objects.filter(imported=False)
+            objects = ImportRecord.objects.filter(imported=False).order_by('barcode')
+
+        processed_sn = []
+        processed_barcode = []
 
         for record in objects:
             paired_data = {}
@@ -241,9 +256,10 @@ class DataCenterImportAssets(DataCenterMixin):
                             else:
                                 paired_data = {'component_sn': sn, 'record': record, 'paired': record.device}
                         else:
-                            paired_data = {'component_sn': sn, 'record': record, 'paired': GenericComponent.objects.get(sn=sn).device}
+                            paired_data = {'component_sn': sn, 'record': record, 'paired': GenericComponent.objects.get(sn__iexact=sn).device}
 
                     else:
+                        paired_data = {'sn': sn, 'record': record, 'paired': Device.objects.get(sn__iexact=sn)}
                         try:
                             del sns_copy[sn]
                         except KeyError:
@@ -261,8 +277,6 @@ class DataCenterImportAssets(DataCenterMixin):
                             del sns_copy[sn]
                         except KeyError:
                             pass
-            if not errors and not paired_data:
-                import pdb; pdb.set_trace()
             if errors:
                 yield ('error_ralph', record, errors, paired_data)
             else:
