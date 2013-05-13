@@ -17,6 +17,7 @@ from django.utils.html import escape
 from ajax_select import LookupChannel
 from ralph.discovery.models import Device
 from django.db.models import Q
+
 from ralph_assets.models import RalphDeviceLookup
 
 
@@ -28,6 +29,7 @@ class DeviceLookup(LookupChannel):
             Q(
                 Q(barcode__istartswith=q) |
                 Q(sn__istartswith=q) |
+                Q(id__startswith=q) |
                 Q(model__name__icontains=q)
             )
         )
@@ -42,24 +44,38 @@ class DeviceLookup(LookupChannel):
     def format_item_display(self, obj):
         return """
         <li class='asset-container'>
-            <span class='asset-model'>%s</span>
-            <span class='asset-barcode'>%s</span>
-            <span class='asset-sn'>%s</span>
+            <span class='asset-model'>id:%s</span><br>
+            <span class='asset-model'>sn:%s</span><br>
+            <span class='asset-model'>bc:%s</span><br>
+            <span class='asset-model'>name:%s</span><br>
+            <span class='asset-model'>model:<b>%s</b></span><br>
         </li>
-        """ % (escape(obj.model), escape(obj.barcode or ''), escape(obj.sn))
+        """ % (escape(obj.id), escape(obj.sn), escape(obj.barcode or ''), escape(obj.name), escape(obj.model.name))
 
 
 class ImportRecordAdminForm(forms.ModelForm):
     class Meta:
         model = ImportRecord
 
-    device = AutoCompleteSelectField(
-        ('ralph_assets.models', 'RalphDeviceLookup'), required=False
+    device_id = AutoCompleteSelectField(
+        ('ralph_assets_imports.admin', 'DeviceLookup'), required=False
+        #('ralph_assets.models', 'RalphDeviceLookup'), required=False
     )
+
+    def clean_device_id(self, *args, **kwargs):
+        self.device_id = self.data['device_id']
+        return self.device_id
+
+    def clean(self, *args, **kwargs):
+        self.created_by = []
+        self.modified_by = []
+
+        return super(ImportRecordAdminForm, self).clean(*args, **kwargs)
 
 
 class ImportRecordAdmin(ModelAdmin):
     form = ImportRecordAdminForm
+    #readonly_fields = ("created","modified","created_by", "modified_by")
     #list_display = ('ci', 'path', 'is_regex')
     #search_fields = ('ci', 'is_regex', 'path',)
     #save_on_top = True

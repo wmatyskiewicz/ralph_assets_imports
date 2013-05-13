@@ -50,7 +50,7 @@ class DataCenterImportAssets(DataCenterMixin):
             elif i[0] == 'error_inwent':
                 yield ['Brak w inwentaryzacji'] + [unicode(i[1][field]) for field in ralph_fields]
 
-    def create_asset(self, record_id):
+    def create_asset(self, record_id, roolback=True):
         obj = ImportRecord.objects.get(id=record_id)
         ass = Asset.create(
             base_args=dict(
@@ -62,7 +62,7 @@ class DataCenterImportAssets(DataCenterMixin):
                 price=decimal.Decimal(str(obj.invent_value.replace(',', '.')) or 0),
                 remarks=obj.info + '\n' + 'Inw. name: ' + obj.name,
                 niw=obj.niw,
-                production_use_date=None, #obj.date,
+                production_use_date=obj.date,
                 source=AssetSource.shipment,
                 sn=obj.sn or None,
                 barcode=obj.barcode or None,
@@ -70,7 +70,7 @@ class DataCenterImportAssets(DataCenterMixin):
                 warehouse=Warehouse.concurrent_get_or_create(name=obj.dc)[0],
             ),
             device_info_args=dict(
-                ralph_device=obj.device,
+                ralph_device_id=obj.device_id,
                 u_level=obj.u_level,
                 u_height=obj.u_height,
                 size=0,
@@ -79,8 +79,7 @@ class DataCenterImportAssets(DataCenterMixin):
         )
         ass.save()
         ass.create_stock_device()
-        obj.imported = True
-        obj.save()
+        return ass
 
     def get(self, *args, **kwargs):
         if self.request.GET.get('csv'):
@@ -103,24 +102,25 @@ class DataCenterImportAssets(DataCenterMixin):
                 self.import_errors['inwent'].append(i)
         return super(DataCenterImportAssets, self).get(*args, **kwargs)
 
-    def do_import(self):
+    def do_import(self, dry_run=True):
         for i in self.validate():
             logger.debug(i)
             if i[0] == 'ok':
                 try:
-                    with transaction.commit_on_success():
-                        ir = ImportRecord.objects.get(id=i[1].id)
-                        ir.device = i[2]['paired']
-                        ir.save()
-                        self.create_asset(i[1].id)
+                    ir = ImportRecord.objects.get(id=i[1].id)
+                    ir.device_id = i[2]['paired'].id
+                    ir.save()
+                    self.create_asset(i[1].id)
+                    ir = ImportRecord.objects.get(id=i[1].id)
+                    ir.imported = True
+                    ir.save()
                 except Exception as e:
-                    #transaction.rollback()
                     ir = ImportRecord.objects.get(id=i[1].id)
                     ir.errors = str(e)
                     ir.imported = False
                     ir.save()
                     logging.error('error importing', exc_info=e)
-        
+
     def post(self, *args, **kwargs):
         self.form = UploadFileForm(self.request.POST, self.request.FILES)
         if self.form.is_valid():
@@ -134,7 +134,7 @@ class DataCenterImportAssets(DataCenterMixin):
             OfficeInfo.admin_objects.all().delete()
             PartInfo.admin_objects.all().delete()
             self.import_(opened_file)
-            self.do_import()
+            self.do_import(dry_run=True)
         return self.get(*args, **kwargs)
 
     def get_context_data(self, **kwargs):
@@ -202,7 +202,7 @@ class DataCenterImportAssets(DataCenterMixin):
 
         for key in ['', None]:
             try:
-                del sns[key]; 
+                del sns[key];
             except KeyError:
                 pass
             try:
@@ -230,6 +230,7 @@ class DataCenterImportAssets(DataCenterMixin):
             paired_data = {}
             errors = []
             sn = self.cleaner(record.sn).lower()
+            second_sn = self.cleaner(record.second_sn).lower()
             barcode = self.cleaner(record.barcode).lower()
             if record.errors:
                 errors.append(errors)
@@ -250,14 +251,21 @@ class DataCenterImportAssets(DataCenterMixin):
                         logger.debug('sn not in sns');
                         if not sn in components_sns:
                             logger.debug('sn not in components');
-                            if not record.device:
+                            if not record.device_id:
                                 logger.debug('and no assigned device');
-                                errors.append('Brak w Ralph')
+                                if not second_sn in sns:
+                                    if not second_sn in components_sns:
+                                        errors.append('Brak w Ralph')
+                                    else:
+                                        logger.debug('found second_sn in components_sns')
+                                        paired_data = {'component_sn': second_sn, 'record': record, 'paired': GenericComponent.objects.get(sn__iexact=sn).device}
+                                else:
+                                    logger.debug('found second_sn in sns')
+                                    paired_data = {'sn': second_sn, 'record': record, 'paired': Device.objects.get(sn__iexact=sn).id}
                             else:
-                                paired_data = {'component_sn': sn, 'record': record, 'paired': record.device}
+                                paired_data = {'sn': sn, 'record': record, 'paired': record.device_id}
                         else:
                             paired_data = {'component_sn': sn, 'record': record, 'paired': GenericComponent.objects.get(sn__iexact=sn).device}
-
                     else:
                         paired_data = {'sn': sn, 'record': record, 'paired': Device.objects.get(sn__iexact=sn)}
                         try:

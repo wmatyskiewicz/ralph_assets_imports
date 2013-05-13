@@ -31,8 +31,8 @@ from ralph.discovery.models_util import SavingUser
 SAVE_PRIORITY = 0
 
 
-class ImportRecord(TimeTrackable, EditorTrackable, SavingUser, SoftDeletable):
-    device = models.ForeignKey(Device, null=True)
+class ImportRecord(SoftDeletable):
+    device_id = models.IntegerField(null=True, blank=True, unique=True)
 
     model = models.CharField(
         verbose_name='Model urzadzenia',
