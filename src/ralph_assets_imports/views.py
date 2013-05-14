@@ -238,7 +238,7 @@ class DataCenterImportAssets(DataCenterMixin):
         # after copy
         errors = []
         if record_id:
-            objects = ImportRecord.objects.filter(id__in=[record_id], imported=False).order_by('barcode')
+            objects = ImportRecord.objects.filter(imported=False,id__in=[record_id]).order_by('barcode')
         else:
             objects = ImportRecord.objects.filter(imported=False).order_by('barcode')
 
@@ -253,6 +253,7 @@ class DataCenterImportAssets(DataCenterMixin):
             barcode = self.cleaner(record.barcode).lower()
             if record.errors:
                 errors.append(errors)
+
             #if not record.fv:
             #    errors.append('Brak fv')
             #if not record.invent_value:
@@ -309,9 +310,10 @@ class DataCenterImportAssets(DataCenterMixin):
                 yield ('error_ralph', record, errors, paired_data)
             else:
                 yield ('ok', record, paired_data)
-
         remaining = set(barcodes_copy.values()).union(set(sns_copy.values()))
-        for row in data.filter(id__in=remaining).values('id', 'name', 'venture__name', 'venture__symbol', 'barcode', 'sn'):
+        x_sns = [x[0].lower() for x in ImportRecord.objects.filter(sn__gt='').values_list('sn')]
+        x_barcodes = [x[0] for x in ImportRecord.objects.filter(barcode__gt='').values_list('barcode')]
+        for row in data.exclude(sn__in=x_sns).exclude(barcode__in=x_barcodes).values('id', 'name', 'venture__name', 'venture__symbol', 'barcode', 'sn'):
             yield ('error_inwent', row)
 
 
