@@ -52,6 +52,7 @@ class DataCenterImportAssets(DataCenterMixin):
 
     def create_asset(self, record_id, roolback=True):
         obj = ImportRecord.objects.get(id=record_id)
+        date = obj.date or None
         ass = Asset.create(
             base_args=dict(
                 type=AssetType.data_center,
@@ -62,7 +63,7 @@ class DataCenterImportAssets(DataCenterMixin):
                 price=decimal.Decimal(str(obj.invent_value.replace(',', '.')) or 0),
                 remarks=obj.info + '\n' + 'Inw. name: ' + obj.name,
                 niw=obj.niw,
-                production_use_date=obj.date,
+                production_use_date=date,
                 source=AssetSource.shipment,
                 sn=obj.sn or None,
                 barcode=obj.barcode or None,
@@ -91,8 +92,9 @@ class DataCenterImportAssets(DataCenterMixin):
 
         create_id = self.request.GET.get('create_id', '')
         if create_id:
-            self.create_asset(create_id)
-            return HttpResponseRedirect("/")
+            new_asset = self.create_asset(create_id)
+            device_id = new_asset.device_info.ralph_device.id
+            return HttpResponseRedirect("/ui/search/info/%s" % device_id)
 
         self.form = UploadFileForm(self.request.POST, self.request.FILES)
         self.import_errors = dict();
