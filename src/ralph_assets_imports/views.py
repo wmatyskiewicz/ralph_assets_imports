@@ -80,6 +80,8 @@ class DataCenterImportAssets(DataCenterMixin):
         )
         ass.save()
         ass.create_stock_device()
+        obj.imported = True
+        obj.save()
         return ass
 
     def get(self, *args, **kwargs):
@@ -92,14 +94,21 @@ class DataCenterImportAssets(DataCenterMixin):
 
         create_id = self.request.GET.get('create_id', '')
         if create_id:
-            new_asset = self.create_asset(create_id)
+            try:
+                new_asset = self.create_asset(create_id)
+            except Exception as e:
+                record_error = ImportRecord.objects.get(id=create_id)
+                record_error.errors = str(e)
+                record_error.save()
+                raise
             device_id = new_asset.device_info.ralph_device.id
             return HttpResponseRedirect("/ui/search/info/%s" % device_id)
 
         self.form = UploadFileForm(self.request.POST, self.request.FILES)
-        self.import_errors = dict();
-        self.import_errors['ralph'] = [];
-        self.import_errors['inwent'] = [];
+        self.import_errors = dict()
+        self.import_errors['ralph'] = []
+        self.import_errors['inwent'] = []
+        self.import_errors['fixed'] = []
         self.fixed_count = 0
         for i in self.validate():
             if i[0] == 'error_ralph':
@@ -107,6 +116,7 @@ class DataCenterImportAssets(DataCenterMixin):
             elif i[0] == 'error_inwent':
                 self.import_errors['inwent'].append(i)
             elif i[0] == 'ok':
+                self.import_errors['fixed'].append(i)
                 self.fixed_count += 1
         return super(DataCenterImportAssets, self).get(*args, **kwargs)
 
@@ -116,12 +126,9 @@ class DataCenterImportAssets(DataCenterMixin):
             if i[0] == 'ok':
                 try:
                     ir = ImportRecord.objects.get(id=i[1].id)
-                    ir.device_id = i[2]['paired'].id
+                    ir.device_id = i[2]['paired']
                     ir.save()
                     self.create_asset(i[1].id)
-                    ir = ImportRecord.objects.get(id=i[1].id)
-                    ir.imported = True
-                    ir.save()
                 except Exception as e:
                     ir = ImportRecord.objects.get(id=i[1].id)
                     ir.errors = str(e)
@@ -255,31 +262,32 @@ class DataCenterImportAssets(DataCenterMixin):
 
             if not sn and not barcode:
                 errors.append('Brak sn oraz barcode')
-            if sn or barcode:
-                logger.debug('has sn or barcode');
+            if record.device_id:
+                logger.debug('record has assigned device_id')
+                paired_data = {'record': record, 'paired': record.device_id}
+            elif sn or barcode:
+                logger.debug('has sn or barcode')
                 if not barcode in barcodes:
                     logger.debug('barcode not in barcodes');
                     if not sn in sns:
                         logger.debug('sn not in sns');
                         if not sn in components_sns:
                             logger.debug('sn not in components');
-                            if not record.device_id:
-                                logger.debug('and no assigned device');
-                                if not second_sn in sns:
-                                    if not second_sn in components_sns:
-                                        errors.append('Brak w Ralph')
-                                    else:
-                                        logger.debug('found second_sn in components_sns')
-                                        paired_data = {'component_sn': second_sn, 'record': record, 'paired': GenericComponent.objects.get(sn__iexact=sn).device}
+                            if not second_sn in sns:
+                                if not second_sn in components_sns:
+                                    errors.append('Brak w Ralph')
                                 else:
-                                    logger.debug('found second_sn in sns')
-                                    paired_data = {'sn': second_sn, 'record': record, 'paired': Device.objects.get(sn__iexact=sn).id}
+                                    logger.debug('found second_sn in components_sns')
+                                    paired_data = {'key': 'second_sn in components_sns', 'component_sn': second_sn, 'record': record, 'paired': GenericComponent.objects.get(sn__iexact=sn).device.id}
                             else:
-                                paired_data = {'sn': sn, 'record': record, 'paired': record.device_id}
+                                logger.debug('found second_sn in sns')
+                                paired_data = {'key': 'second_sn in sns', 'sn': second_sn, 'record': record, 'paired': Device.objects.get(sn__iexact=sn).id}
                         else:
-                            paired_data = {'component_sn': sn, 'record': record, 'paired': GenericComponent.objects.get(sn__iexact=sn).device}
+                            logger.debug('found sn in components_sns')
+                            paired_data = {'key': 'sn in components_sns', 'component_sn': sn, 'record': record, 'paired': GenericComponent.objects.get(sn__iexact=sn).device.id}
                     else:
-                        paired_data = {'sn': sn, 'record': record, 'paired': Device.objects.get(sn__iexact=sn)}
+                        logger.debug('found sn in sns')
+                        paired_data = {'key': 'sn in sns', 'sn': sn, 'record': record, 'paired': Device.objects.get(sn__iexact=sn).id}
                         try:
                             del sns_copy[sn]
                         except KeyError:
@@ -288,7 +296,7 @@ class DataCenterImportAssets(DataCenterMixin):
                     logger.debug('barcode is in barcodes');
                     try:
                         del barcodes_copy[barcode]
-                        paired_data = {'barcode': barcode, 'record': record, 'paired': Device.objects.get(barcode=barcode)}
+                        paired_data = {'key': 'barcode in barcodes', 'barcode': barcode, 'record': record, 'paired': Device.objects.get(barcode=barcode).id}
                     except KeyError:
                         errors.append('Duplikat barcode w Inwent.')
                     # as well

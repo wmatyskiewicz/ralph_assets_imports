@@ -14,7 +14,7 @@
     <a class='button btn-primary' href="?csv"> Export do csv</a><br>
     <a class='button btn-primary' href="?reimport">Reimport poprawionych rekordów</a><br>
     <br>
-    <h3> niekompletnych: {{failed_count}}, błędnych: {{fixed_count}}, zaimportowanych: {{success_count}}</h3>
+    <h3> niekompletnych: {{failed_count}}, odrzuconych: {{fixed_count}}, zaimportowanych: {{success_count}}</h3>
 
     <table class="table table-striped table-bordered">
         <thead><tr>
@@ -41,6 +41,39 @@
         {% endfor %}
         </tbody>
     </table>
+
+    <h3>Sparowane - odrzucone</h3>
+    <table class="table table-striped table-bordered">
+        <thead><tr>
+                <th>id</th>
+                <th>Klucz dopasowania</th>
+                <th>link</th>
+                <th>link</th>
+ 
+                {% include "assets/view_ralph_header.html" %}
+        </tr></thead>
+        <tbody>
+        {% for type,record,paired_data in import_errors.fixed %}
+        <tr>
+            <td>
+                ID Ralph: {{ paired_data.paired }}
+            </td>
+            <td>
+                {{ paired_data.key }}
+            </td>
+            <td>
+                <a href="/admin/ralph_assets_imports/importrecord/{{record.id}}">Edit</a><br>
+            </td>
+            <td>
+                <a target="_noblank" href="?create_id={{record.id}}">Add</a>
+            </td>
+     
+            {% include "assets/view_record.html" with record=record %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
 
     <hr>
     <h3>Brak w Inwentaryzacji</h3>
