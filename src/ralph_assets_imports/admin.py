@@ -63,7 +63,7 @@ class ImportRecordAdminForm(forms.ModelForm):
     )
 
     def clean_device_id(self, *args, **kwargs):
-        self.device_id = self.data['device_id']
+        self.device_id = self.data['device_id'] or None
         return self.device_id
 
     def clean(self, *args, **kwargs):

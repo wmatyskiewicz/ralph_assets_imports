@@ -32,7 +32,7 @@ SAVE_PRIORITY = 0
 
 
 class ImportRecord(SoftDeletable):
-    device_id = models.IntegerField(null=True, blank=True, unique=True)
+    device_id = models.IntegerField(null=True, blank=True, unique=True, default=None)
 
     model = models.CharField(
         verbose_name='Model urzadzenia',

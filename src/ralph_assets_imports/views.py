@@ -125,11 +125,14 @@ class DataCenterImportAssets(DataCenterMixin):
             logger.debug(i)
             if i[0] == 'ok':
                 try:
+                    logger.debug('OK - %s' % i)
                     ir = ImportRecord.objects.get(id=i[1].id)
                     ir.device_id = i[2]['paired']
                     ir.save()
+                    logger.debug('Creating asset .. %s ' % i[1].id)
                     self.create_asset(i[1].id)
                 except Exception as e:
+                    logger.debug('Exception creating asset .. %s' % unicode(e))
                     ir = ImportRecord.objects.get(id=i[1].id)
                     ir.errors = str(e)
                     ir.imported = False
