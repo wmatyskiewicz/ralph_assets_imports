@@ -59,7 +59,6 @@ class ImportRecordAdminForm(forms.ModelForm):
 
     device_id = AutoCompleteSelectField(
         ('ralph_assets_imports.admin', 'DeviceLookup'), required=False
-        #('ralph_assets.models', 'RalphDeviceLookup'), required=False
     )
 
     def clean_device_id(self, *args, **kwargs):
@@ -75,10 +74,8 @@ class ImportRecordAdminForm(forms.ModelForm):
 
 class ImportRecordAdmin(ModelAdmin):
     form = ImportRecordAdminForm
-    #readonly_fields = ("created","modified","created_by", "modified_by")
-    #list_display = ('ci', 'path', 'is_regex')
-    #search_fields = ('ci', 'is_regex', 'path',)
-    #save_on_top = True
+    list_display = ('barcode', 'sn', 'device_id')
+    search_fields = ('barcode', 'sn', 'device_id')
 
 admin.site.register(ImportRecord, ImportRecordAdmin)
 

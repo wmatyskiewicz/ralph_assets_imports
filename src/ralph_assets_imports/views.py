@@ -101,7 +101,7 @@ class DataCenterImportAssets(DataCenterMixin):
                 record_error.errors = str(e)
                 record_error.save()
                 raise
-            device_id = new_asset.device_info.ralph_device.id
+            device_id = new_asset.device_info.ralph_device_id
             return HttpResponseRedirect("/ui/search/info/%s" % device_id)
 
         self.form = UploadFileForm(self.request.POST, self.request.FILES)
@@ -125,7 +125,7 @@ class DataCenterImportAssets(DataCenterMixin):
             logger.debug(i)
             if i[0] == 'ok':
                 try:
-                    logger.debug('OK - %s' % i)
+                    logger.debug('OK.')
                     ir = ImportRecord.objects.get(id=i[1].id)
                     ir.device_id = i[2]['paired']
                     ir.save()
