@@ -25,7 +25,7 @@ import csv
 import decimal
 from django.http import HttpResponseRedirect
 from ralph_assets.models import Asset, DeviceInfo, PartInfo, AssetType,AssetCategoryType, Warehouse, AssetSource
-from django.db import transaction
+from django.db import transaction, IntegrityError
 import logging
 
 logger = logging.getLogger('ralph')
@@ -53,6 +53,7 @@ class DataCenterImportAssets(DataCenterMixin):
     def create_asset(self, record_id, roolback=True):
         obj = ImportRecord.objects.get(id=record_id)
         date = obj.date or None
+        obj.device_id, crtd = Device.objects.get_or_create(sn=obj.sn)
         ass = Asset.create(
             base_args=dict(
                 type=AssetType.data_center,
@@ -71,15 +72,13 @@ class DataCenterImportAssets(DataCenterMixin):
                 warehouse=Warehouse.concurrent_get_or_create(name=obj.dc)[0],
             ),
             device_info_args=dict(
-                ralph_device_id=obj.device_id,
+                ralph_device_id=obj.device_id.id,
                 u_level=obj.u_level,
                 u_height=obj.u_height,
                 size=0,
                 rack=obj.rack,
             ),
         )
-        ass.save()
-        ass.create_stock_device()
         obj.imported = True
         obj.save()
         return ass
@@ -178,23 +177,23 @@ class DataCenterImportAssets(DataCenterMixin):
             dc, info, niw, fv, name,invent_value,date, price_netto,
             deprecation_rate, monthly, account_comments,second_sn) = subset
             i = ImportRecord(
-               model=model,
-               device_type=device_type,
-               sn=sn,
-               barcode=barcode,
-               invent_value=invent_value,
-               rack=rack,
-               u_level=u_level,
-               u_height=u_height,
-               dc=dc,
-               info=info,
-               niw=niw,
-               fv=fv,
-               name=name,
-               date=date,
-               price_netto=price_netto,
-               deprecation_rate=deprecation_rate,
-               second_sn=second_sn,
+                model=model,
+                device_type=device_type,
+                sn=sn,
+                barcode=barcode,
+                invent_value=invent_value,
+                rack=rack,
+                u_level=u_level,
+                u_height=u_height,
+                dc=dc,
+                info=info,
+                niw=niw,
+                fv=fv,
+                name=name,
+                date=date,
+                price_netto=price_netto,
+                deprecation_rate=deprecation_rate,
+                second_sn=second_sn,
             )
             i.save()
 

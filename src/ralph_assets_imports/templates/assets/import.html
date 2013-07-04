@@ -33,7 +33,7 @@
             <td>
                 <a href="/admin/ralph_assets_imports/importrecord/{{record.id}}">Edit</a><br>
             </td>
-            <td>
+            <td>id: {{record.id}}
                 <a target="_noblank" href="?create_id={{record.id}}">Add</a>
             </td>
             {% include "assets/view_record.html" with record=record %}
@@ -49,7 +49,7 @@
                 <th>Klucz dopasowania</th>
                 <th>link</th>
                 <th>link</th>
- 
+
                 {% include "assets/view_ralph_header.html" %}
         </tr></thead>
         <tbody>
@@ -67,7 +67,7 @@
             <td>
                 <a target="_noblank" href="?create_id={{record.id}}">Add</a>
             </td>
-     
+
             {% include "assets/view_record.html" with record=record %}
         </tr>
         {% endfor %}
